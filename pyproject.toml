@@ -1,50 +1,35 @@
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+[project]
+authors = [{ name = "Mihai Cosma", email = "mcosma@gmail.com" }]
+
+[tool.pylint.format]
+max-line-length = "200"
 
 [tool.black]
-line-length = 125
-skip-string-normalization = true
+line-length = "200"
+extend-exclude = "\\.ipynb"
 
-[tool.coverage.run]
-omit = [
-    "discord/__main__.py",
-    "discord/types/*",
-    "*/_types.py",
-]
+[tool.ruff]
+# Default is: pycodestyle (E) and Pyflakes (F)
+# We add flake8-builtins (A), pydocstyle (D), isort (I), pep8-naming (N), and pylint (PL).
+# We remove pycodestyle (E) since it throws erroneous line too long errors.
+# We remove Pyflakes (F) since it complains about `import *` which we need.
+select = ["A", "D", "I", "N", "PL"]
 
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "@overload"
-]
+# We ignore the following rules:
+# D203: 1 blank line required before class docstring (incompatible with D211: no blank lines before class docstring)
+# D213: multi-line-summary-second-line (incompatible with D212: multi-line summary should start at the first line)
+# D100: Missing docstring in public module
+# D103: Missing docstring in public function
+ignore = ["D203", "D213", "D100", "D103"]
 
-[tool.isort]
-profile = "black"
-combine_as_imports = true
-combine_star = true
-line_length = 125
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["A", "D", "I", "N", "PL"]
+unfixable = []
 
-[tool.pyright]
-include = [
-    "discord",
-    "discord/app_commands",
-    "discord/types",
-    "discord/ui",
-    "discord/ext",
-    "discord/ext/commands",
-    "discord/ext/tasks",
-]
-exclude = [
-    "**/__pycache__",
-    "build",
-    "dist",
-    "docs",
-]
-reportUnnecessaryTypeIgnoreComment = "warning"
-reportUnusedImport = "error"
-pythonVersion = "3.8"
-typeCheckingMode = "basic"
+line-length = 200
 
-[tool.pytest.ini_options]
-asyncio_mode = "strict"
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.10.
+target-version = "py310"
