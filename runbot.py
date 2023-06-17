@@ -9,7 +9,6 @@ import json
 import io
 from typing import Union, Any
 import pandas as pd
-from matplotlib import pyplot as plt
 
 # 3rd party
 # from skimage.metrics import structural_similarity as ssim
@@ -49,6 +48,7 @@ bot = Momo(command_prefix="$", intents=intents)
 
 DELV_GUILD_ID = 754739461707006013
 ROBOTS_CHANNEL = 1035343815088816258
+MARCOMMS_CHANNEL = 798953513157132299
 MIHAI_ID = 135898637422166016
 
 delv_pfp: Image = PILImage.open("delvpfp.png").convert("RGB")
@@ -216,11 +216,14 @@ async def imposters(context):
     pass_context=True,
 )
 async def say(context, *args):
-    if context.channel != bot.channel:
+    print(f"context = {context}, context.channel = {context.channel}, context.channel.id = {context.channel.id}, args = {args}")
+    if context.channel != bot.channel and context.channel.id != MARCOMMS_CHANNEL:
+        print("not in the right channel")
         return
     if context.author.id != MIHAI_ID:
         response_list = ["You're not my mom! :angry:", "I only listen to Mihai! :dogegun:", "*bites a toe* :dogelick:", "You can't tell me what to do! :dogwhat:"]
         await context.send(random.choice(response_list))
+        return
     await context.send(" ".join(args))
 
 
@@ -268,6 +271,21 @@ async def save_guild_members_df():
     guild_members_df.to_csv("guild_members.csv", index=False)
     print("saved guild members to csv")
 
+async def ban_member(id):
+    try:
+        await bot.guild.ban(discord.Object(id), reason="Spammers")
+        print(f"Banned {id}")
+    except Exception as exc:
+        print(f"Failed to ban {id}: {exc}")
+
+async def ban_ids_to_ban(atatime=5):
+    ids_to_ban = pd.read_csv("ids_to_ban.csv")
+    ids_to_ban = ids_to_ban["id"].values.tolist()
+    semaphore = asyncio.Semaphore(atatime)
+    async with semaphore:
+        tasks = [ban_member(id) for id in ids_to_ban]
+        for future in async_tqdm.as_completed(tasks, desc="Banning spammers"):
+            await future
 
 # %%
 @bot.event
@@ -275,46 +293,16 @@ async def on_ready():
     print(f"We have logged in as {bot.user}")
     assert (guild := bot.get_guild(DELV_GUILD_ID)), "Guild not found"
     bot.guild = guild
-    assert (channel := bot.get_channel(ROBOTS_CHANNEL)), "Channel not found"
+    assert (channel := bot.get_channel(ROBOTS_CHANNEL)), "Robots channel not found"
     assert isinstance(channel, GuildChannel), "Channel is not a GuildChannel = Union[TextChannel, VoiceChannel, CategoryChannel]"
     bot.channel = channel
     df = await get_guild_members()
     df.to_csv("guild_members.csv", index=False)
     print("saved guild members to csv")
+    # await ban_ids_to_ban()
     # await populate_recent_joiners(guild)
     # await find_member(guild, delv_pfp, channel)
 
 
 # %% run it
 bot.run(config["TOKEN"])
-
-# %%
-df = pd.read_csv("guild_members.csv")
-
-# count cumulative joins without a 5 minute break
-# date format "2021-05-11 07:27:17+00:00"
-df["joined_at"] = pd.to_datetime(df["joined_at"], format="mixed")
-df = df.sort_values(by="joined_at", ascending=True).reset_index(drop=True)
-df["previous_joined_at"] = df["joined_at"].shift(1)
-df["join_delta"] = df["joined_at"] - df["previous_joined_at"]
-df["join_delta"] = df["join_delta"].dt.seconds / 60  # in minutes
-
-# boolean column which will be True when `join_delta` > 5 and False otherwise
-df["reset_point"] = df["join_delta"] > 5
-
-# `cumsum` on a boolean column will create distinct groups each time `reset_point` is True
-df["group"] = df["reset_point"].cumsum()
-
-# groupby 'group' and create a running count within each group
-df["consecutive_joins"] = df.groupby("group").cumcount()
-
-# If you don't want to keep the 'group' and 'reset_point' columns, you can drop them
-df = df.drop(columns=["reset_point", "group"])
-
-# %%
-df.loc[len(df) - 5 : len(df), ["joined_at", "join_delta", "consecutive_joins"]]
-
-# %%
-df.plot(x="joined_at", y="consecutive_joins")
-
-# %%
