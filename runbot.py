@@ -26,6 +26,10 @@ import discord
 from discord.ext import commands
 from discord import Member, TextChannel, VoiceChannel, CategoryChannel
 from discord.guild import Guild
+import importlib.util
+spec = importlib.util.spec_from_file_location("release_dates", "/code/scripts/release_dates.py")
+release_dates = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(release_dates)
 
 GuildChannel = Union[TextChannel, VoiceChannel, CategoryChannel]
 
@@ -90,7 +94,6 @@ async def populate_recent_joiners(guild):
 #     # Return True if images are identical, False otherwise
 #     return similarity_index == 1.0
 
-
 async def find_member(guild: Guild, delv_pfp: Image, channel: GuildChannel):
     # member_display_name = "Element Finance® NOTICE#8822"
     # member = discord.utils.find(lambda m: m.display_name == member_display_name, guild.members)
@@ -102,12 +105,6 @@ async def find_member(guild: Guild, delv_pfp: Image, channel: GuildChannel):
         print(f"Found member {member.display_name} with ID {member.id} joined at {member.joined_at} role {member.top_role}")
         is_imposter_result = await is_imposter(member, delv_pfp)  # type: ignore
         print(f"They {'ARE' if is_imposter_result else 'ARE NOT'} an imposter")
-
-
-# print(f"{member.display_name} is an imposter! ID {member.id} joined {member_join_time.strftime('%d %B %Y')}")
-
-# await member.kick(reason="Imposter")
-
 
 async def report_imposter(member: Member, channel: GuildChannel):
     member_join_time = member.joined_at
@@ -194,6 +191,20 @@ async def on_member_join(member):
             with open("members.json", "w", encoding="utf-8") as file:
                 json.dump(user_data, file)
 
+@bot.command(
+    name="deps",
+    description="Get dependencies",
+    pass_context=True,
+)
+async def deps(context):
+    if context.channel != bot.channel:
+        await context.send("This command can only be used in the 🤖︱ro-bots channel.")
+        return
+    if context.guild != bot.guild:
+        await context.send("This command can only be used in the DELV server.")
+        return
+    msg = await release_dates.get_release_dates("/home/mihai/.pyenv/versions/elf-env/bin/pip", short=True)
+    await bot.channel.send(msg)
 
 @bot.command(
     name="imposters",
